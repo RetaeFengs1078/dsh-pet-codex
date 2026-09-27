@@ -881,8 +881,8 @@ app.whenReady().then(() => {
               hit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 1000, clientY: 600, screenX: 1000, screenY: 600, pointerId: 93 }));
               hit.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: upX, clientY: upY, screenX: upX, screenY: upY, pointerId: 93 }));
               await sleep(400); // 弹簧跟随收敛
-              var during = { x: d.dragPos.x, y: d.dragPos.y };
               await sleep(200); // 轨迹过期 → 估速 null → 温柔放下（不抛掷）
+              var during = { x: d.dragPos.x, y: d.dragPos.y };
               window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: upX, clientY: upY, screenX: upX, screenY: upY, pointerId: 93 }));
               await sleep(80); // 释放处理完成
               var released = d.lastDragRelease ? { x: d.lastDragRelease.x, y: d.lastDragRelease.y } : null;
@@ -927,6 +927,9 @@ app.whenReady().then(() => {
               var hit = document.querySelector('.pet-hit');
               var d = window.__dshPetDebug;
               if (!hit || !d) return null;
+              var sprite = sprites[0];
+              var originalAutoMove = sprite && sprite.autoMoveEnabled;
+              if (sprite && !originalAutoMove) sprite.onMenuAction({ action: 'toggle-auto-move' });
               var errsBefore = (d.errors || []).length;
               try {
                 hit.dispatchEvent(
@@ -944,6 +947,12 @@ app.whenReady().then(() => {
                 errsNew: (d.errors || []).length - errsBefore,
               };
               if (menu) {
+                var rootItems = Array.from(menu.querySelector('.dsh-pet-menu-column').children);
+                var quitItem = rootItems[rootItems.length - 1];
+                var autoMoveItem = rootItems.find(function (item) { return item.textContent.startsWith('自主移动'); });
+                out.quitLast = quitItem && quitItem.textContent === '退出桌宠';
+                out.quitColor = quitItem && getComputedStyle(quitItem).color;
+                out.autoMoveLabel = autoMoveItem && autoMoveItem.textContent;
                 var branch = menu.querySelector('.dsh-pet-menu-branch');
                 if (branch) {
                   branch.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false, relatedTarget: menu }));
@@ -995,6 +1004,17 @@ app.whenReady().then(() => {
                       out.lvl3AfterGapHover = visible().length;
                     }
                   }
+                }
+                if (sprite && autoMoveItem) {
+                  autoMoveItem.click();
+                  out.autoMoveDisabled = sprite.autoMoveEnabled === false;
+                  out.autoMoveStored = localStorage.getItem('codex-pet-auto-move');
+                  var beforeMove = { x: sprite.pos.x, y: sprite.pos.y };
+                  out.moveAnimation = sprite.tryMove();
+                  await new Promise(function (resolve) { setTimeout(resolve, 120); });
+                  out.moveStayed = sprite.pos.x === beforeMove.x && sprite.pos.y === beforeMove.y &&
+                    sprite.moveRef === null && sprite.pendingMove === null;
+                  if (originalAutoMove) sprite.onMenuAction({ action: 'toggle-auto-move' });
                 }
               }
               return out;

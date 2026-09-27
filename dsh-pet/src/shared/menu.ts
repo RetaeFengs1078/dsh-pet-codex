@@ -29,9 +29,10 @@ export interface MenuLeaf {
   label: string;
   /** 播放的动画名（点播动作）；action 优先于 anim */
   anim?: string;
-  /** 自定义动作：open-site=打开网站 / show-balance=查看余额；whisper=立即碎碎念一句；
-   * chat=打开对话弹窗；home=回到初始位置。手动触发均不受 whisperEnabled 影响（该字段只关自动周期轮询） */
-  action?: 'open-site' | 'show-balance' | 'whisper' | 'chat' | 'home';
+  /** 自定义动作：桌面版还可切换自主移动或退出。 */
+  action?: 'open-site' | 'show-balance' | 'whisper' | 'chat' | 'home' | 'toggle-auto-move' | 'quit';
+  /** 危险操作使用醒目的红色文字。 */
+  danger?: boolean;
 }
 
 /** 分支：带子菜单的项 */
@@ -118,6 +119,8 @@ export const MENU_CSS = [
   '.dsh-pet-menu-item{position:relative;display:flex;align-items:center;justify-content:space-between;',
   'gap:14px;padding:5px 12px;border-radius:6px;white-space:nowrap;cursor:default}',
   '.dsh-pet-menu-item:hover{background:rgba(43,99,255,.14)}',
+  '.dsh-pet-menu-item.is-danger{color:#c62828;font-weight:600}',
+  '.dsh-pet-menu-item.is-danger:hover{background:rgba(198,40,40,.1)}',
   '.dsh-pet-menu-item>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}',
   '.dsh-pet-menu-arrow{color:#9aa0a6;font-size:12px;flex:none}',
 ].join('');
@@ -233,6 +236,7 @@ export function mountContextMenu(opts: {
           showPanel(childPanel, item);
         });
       } else {
+        if (node.danger) item.classList.add('is-danger');
         const label = document.createElement('span');
         label.textContent = node.label;
         item.appendChild(label);

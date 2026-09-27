@@ -7,6 +7,8 @@
  */
 'use strict';
 
+const AUTO_MOVE_STORAGE_KEY = 'codex-pet-auto-move';
+
 // ---------- 单只宠物（行为与浏览器 PetCard 一致；纯逻辑来自 src/shared） ----------
 class PetSprite {
   constructor(pet) {
@@ -82,6 +84,15 @@ class PetSprite {
     this.moveRef = null;
     this.moveToken = 0;
     this.pendingMove = null;
+    this.autoMoveEnabled = true;
+    if (STANDALONE) {
+      try {
+        this.autoMoveEnabled = window.localStorage.getItem(AUTO_MOVE_STORAGE_KEY) !== 'off';
+      } catch {
+        // 存储不可用时仍可在本次运行中切换。
+      }
+    }
+    window.__dshPetDebug.autoMoveEnabled = this.autoMoveEnabled;
     this.customPos = null; // 拖拽后的会话内位置（{rx, ry} 比例）；restart 回角落
     // 右键菜单（统一自绘组件，两端共用同一份：树+渲染均来自 shared-core）
     this.menuOpen = false; // 菜单开启期间强制整窗可交互（悬停菜单不触发穿透翻转）
@@ -416,6 +427,8 @@ class PetSprite {
         const act = S.pickCategoryAction(animations.categories, animations.idle, this.facing, this.anim);
         next = act.name;
       } else if (typeof moved === 'string') {
+        // 关闭自主移动时 tryMove 已原地播放，避免重复切换动画。
+        if (STANDALONE && !this.autoMoveEnabled) return;
         next = moved;
       } else {
         // 已有一场移动进行中（占用）：与浏览器一致，重播当前动画，不另设（绝不重复加载不存在的动作）
@@ -506,6 +519,10 @@ class PetSprite {
       ? actions.find((a) => a.name === preferredName) || null
       : actions[Math.floor(Math.random() * actions.length)];
     if (!chosen) return false;
+    if (STANDALONE && !this.autoMoveEnabled) {
+      this.playOnce(chosen.name);
+      return chosen.name;
+    }
     const mp = Object.assign({}, moves.default, chosen.params || {});
     const dir = (this.facing === 'right') !== this.animations.turn.includes(this.anim) ? 1 : -1;
     const W = VIEW.w;
@@ -1050,11 +1067,13 @@ class PetSprite {
     if (this.pet.balanceEnabled) tools.push({ label: '查看余额', action: 'show-balance' });
     if (!STANDALONE) tools.push({ label: '碎碎念', action: 'whisper' }, { label: '对话', action: 'chat' });
     tools.push({ label: '回到初始位置', action: 'home' });
-    if (STANDALONE) tools.push({ label: '退出桌宠', action: 'quit' });
+    if (STANDALONE)
+      tools.push({ label: '自主移动：' + (this.autoMoveEnabled ? '开启' : '关闭'), action: 'toggle-auto-move' });
     const menuAnimations = STANDALONE
       ? { ...this.animations, events: { balance: this.animations.events?.balance ?? [] } }
       : this.animations;
     const tree = tools.concat(S.buildMenuTree(menuAnimations));
+    if (STANDALONE) tree.push({ label: '退出桌宠', action: 'quit', danger: true });
     if (!tree.length) return;
     this.menuOpen = true;
     this.setInteractive(true); // 菜单是窗口内 DOM：悬停期间整窗保持可交互，关闭后恢复命中区穿透
@@ -1098,6 +1117,17 @@ class PetSprite {
     }
     if (leaf.action === 'quit' && STANDALONE) {
       window.petBridge?.quit();
+      return;
+    }
+    if (leaf.action === 'toggle-auto-move' && STANDALONE) {
+      this.stopMove();
+      this.autoMoveEnabled = !this.autoMoveEnabled;
+      window.__dshPetDebug.autoMoveEnabled = this.autoMoveEnabled;
+      try {
+        window.localStorage.setItem(AUTO_MOVE_STORAGE_KEY, this.autoMoveEnabled ? 'on' : 'off');
+      } catch {
+        // 菜单开关立即生效；存储不可用时仅本次运行有效。
+      }
       return;
     }
     if (leaf.action === 'home') {
