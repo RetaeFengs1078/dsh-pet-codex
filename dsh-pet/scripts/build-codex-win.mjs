@@ -3,12 +3,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rcedit } from 'rcedit';
 
 if (process.platform !== 'win32') throw new Error('此构建脚本仅支持 Windows');
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const plugin = path.join(project, 'dsh-pet');
 const electron = path.join(project, 'runtime', 'electron');
 const output = path.join(project, 'dist', 'CodexPet-win32-x64');
+const icon = path.join(plugin, 'assets', 'pic', 'codex-pet.ico');
 if (output !== path.join(project, 'dist', 'CodexPet-win32-x64') || !output.startsWith(project + path.sep))
   throw new Error('输出路径异常');
 if (!fs.existsSync(path.join(electron, 'electron.exe')))
@@ -16,17 +18,21 @@ if (!fs.existsSync(path.join(electron, 'electron.exe')))
 if (!fs.existsSync(path.join(plugin, 'runtime', 'electron-helper', 'shared-core.js')))
   throw new Error('缺少桌面核心；先运行 pnpm run build:desktop-core');
 
+if (!fs.existsSync(icon)) throw new Error('缺少 codex-pet.ico；先运行 powershell -File scripts/build-codex-icon.ps1');
+
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(output, { recursive: true });
 fs.cpSync(electron, output, { recursive: true });
 fs.renameSync(path.join(output, 'electron.exe'), path.join(output, 'CodexPet.exe'));
+await rcedit(path.join(output, 'CodexPet.exe'), { icon });
+fs.copyFileSync(icon, path.join(output, 'codex-pet.ico'));
 
 const app = path.join(output, 'resources', 'app');
 fs.mkdirSync(app, { recursive: true });
 fs.writeFileSync(
   path.join(app, 'package.json'),
   JSON.stringify(
-    { name: 'codex-quota-pet', version: '0.1.1', main: 'dsh-pet/runtime/electron-helper/main.js' },
+    { name: 'codex-quota-pet', version: '0.1.2', main: 'dsh-pet/runtime/electron-helper/main.js' },
     null,
     2,
   ) + '\n',

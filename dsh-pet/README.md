@@ -272,4 +272,4 @@ pnpm run start:codex
 
 Windows 发布包：先在 `dsh-pet` 目录运行 `pnpm run build:desktop-core`，再运行 `pnpm run build:codex-win`，产物位于仓库根目录 `dist/CodexPet-win32-x64/`。双击 `CodexPet.exe` 即可使用；首次使用前需用 Codex 生成过本机会话记录。发布包须保留附带的 LICENSE、README.txt 和原作者链接。若要像“Codex 额度小鲸鱼”一样注册到 Windows 已安装应用，在发布包目录执行 `powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1`。默认安装到 `D:\Apps\CodexQuotaPet`（没有 D 盘时安装到当前用户的 Programs 目录），并创建开始菜单入口；可从 Windows 已安装应用卸载。更新时旧安装备份留在安装目录旁。
 
-独立版点击手感：按下时轻压角色、松开时弹回；开始拖拽会取消点击回弹，原有点击动作动画仍会播放。
+独立版点击手感：按下时轻压角色、松开时弹回；开始拖拽会取消点击回弹，原有点击动作动画仍会播放。程序图标取自原项目 `assets/memes/可爱.png` 角色图，使用 `scripts/build-codex-icon.ps1` 生成多尺寸 Windows 图标。

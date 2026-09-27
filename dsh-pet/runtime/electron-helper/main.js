@@ -423,6 +423,7 @@ function createPetWindows() {
       x: area.x, // 初始左上角；renderer 首帧按配置角落/位置校正
       y: area.y,
       show: false,
+      icon: STANDALONE ? path.join(__dirname, '..', '..', 'assets', 'pic', 'codex-pet-avatar.png') : undefined,
       useContentSize: true,
       transparent: true,
       frame: false,

@@ -22,6 +22,7 @@ $name = 'Codex 配额桌宠'
 $shortcutPath = Join-Path ([Environment]::GetFolderPath('Programs')) ($name + '.lnk')
 $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\CodexQuotaPet'
 $installedExe = Join-Path $installDir 'CodexPet.exe'
+$installedIcon = Join-Path $installDir 'codex-pet.ico'
 $backup = $null
 $hadOldInstall = Test-Path -LiteralPath $installDir
 
@@ -45,7 +46,8 @@ try {
     Copy-Item -LiteralPath $item.FullName -Destination $installDir -Recurse -Force
   }
   if (-not (Test-Path -LiteralPath $installedExe -PathType Leaf) -or
-      -not (Test-Path -LiteralPath (Join-Path $installDir 'uninstall.ps1') -PathType Leaf)) {
+      -not (Test-Path -LiteralPath (Join-Path $installDir 'uninstall.ps1') -PathType Leaf) -or
+      -not (Test-Path -LiteralPath $installedIcon -PathType Leaf)) {
     throw '安装文件复制不完整。'
   }
 
@@ -53,7 +55,7 @@ try {
   $shortcut = $shell.CreateShortcut($shortcutPath)
   $shortcut.TargetPath = $installedExe
   $shortcut.WorkingDirectory = $installDir
-  $shortcut.IconLocation = $installedExe + ',0'
+  $shortcut.IconLocation = $installedIcon + ',0'
   $shortcut.Description = '只读本机 Codex 会话日志的配额桌宠'
   $shortcut.Save()
 
@@ -62,8 +64,8 @@ try {
   $uninstallCommand = '"' + $powerShellExe + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $installDir 'uninstall.ps1') + '"'
   $fields = @{
     DisplayName = $name
-    DisplayVersion = '0.1.1'
-    DisplayIcon = $installedExe
+    DisplayVersion = '0.1.2'
+    DisplayIcon = $installedIcon
     InstallLocation = $installDir
     UninstallString = $uninstallCommand
     Publisher = 'PC2005-cloud / RetaeFengs1078'
