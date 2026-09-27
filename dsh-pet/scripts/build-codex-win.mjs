@@ -26,7 +26,7 @@ fs.mkdirSync(app, { recursive: true });
 fs.writeFileSync(
   path.join(app, 'package.json'),
   JSON.stringify(
-    { name: 'codex-quota-pet', version: '0.1.0', main: 'dsh-pet/runtime/electron-helper/main.js' },
+    { name: 'codex-quota-pet', version: '0.1.1', main: 'dsh-pet/runtime/electron-helper/main.js' },
     null,
     2,
   ) + '\n',

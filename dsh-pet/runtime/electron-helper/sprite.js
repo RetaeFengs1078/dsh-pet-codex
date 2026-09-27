@@ -745,10 +745,29 @@ class PetSprite {
     }
   }
 
+  // 独立版点击反馈：按下即轻压，松开按小鲸鱼的弹性曲线回弹。
+  // 使用 video 的独立 scale 属性，不碰舞台位移、命中区或视频镜像 transform。
+  clickPress(down, instant = false) {
+    if (!STANDALONE) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    for (const video of [this.videoA, this.videoB]) {
+      if (reduceMotion) {
+        video.style.scale = '';
+        continue;
+      }
+      video.style.transformOrigin = '50% 100%';
+      video.style.transition = instant
+        ? 'opacity 0.18s ease'
+        : 'opacity 0.18s ease, scale ' + (down ? '90ms ease-out' : '220ms cubic-bezier(.34,1.56,.64,1)');
+      video.style.scale = down ? '1.05 0.88' : '1 1';
+    }
+  }
+
   // ---- 点击 vs 拖拽（与浏览器一致：阈值/抓取偏移/释放回循环待机；移动的是窗口） ----
   onPointerDown(e) {
     // 只认左键：右键进入拖拽判定会与右键菜单打架（右键不拖拽，两端一致）
     if (e.button !== 0) return;
+    this.clickPress(true);
     // 抓取速度日志：stopThrow 之前读，否则飞行速度就没了；静止时记录 0（与浏览器同构）
     const grabState = this.throwState;
     console.log(
@@ -832,6 +851,7 @@ class PetSprite {
     if (!d.dragging) {
       if (Math.hypot(dx, dy) < S.DRAG_THRESHOLD) return;
       d.dragging = true;
+      this.clickPress(false, true); // 拖拽成立后立即恢复原形，不带点击回弹
       // 真正开始拖拽才把舞台拍平（人物随光标拿起；与浏览器 dragging 语义一致）
       this.stage.style.transform = 'none';
       if (this.animations.drag.length) {
@@ -851,6 +871,7 @@ class PetSprite {
 
   onPointerUp(e) {
     const d = this.dragState;
+    const wasActive = d.active;
     const wasDragging = d.dragging;
     d.active = false;
     d.dragging = false;
@@ -858,6 +879,7 @@ class PetSprite {
     this.stopDragFollow(); // 弹簧跟随立即停（位置定格在实时 this.pos）
     this.stage.style.transform = 'translateY(' + this.bottomPad + 'px)';
     this.syncInputBusy(); // 拖拽结束：交还给常规判定（幂等，非拖拽时多调一次不发 IPC）
+    if (wasActive) this.clickPress(false, wasDragging || e?.type === 'pointercancel');
     if (wasDragging) {
       this.justDragged = true;
       setTimeout(() => {
@@ -984,7 +1006,7 @@ class PetSprite {
     this.stopThrow(); // 点击飞行中的宠物 = 收手停住（再播点击回应）
     this.stopMove();
     if (!this.animations.clicks.length) return;
-    this.pendingSquash = true; // 等新点击动画切到前台后 Q 弹（压新首帧，与浏览器一致）
+    this.pendingSquash = !STANDALONE; // 独立版在按下/松开时已完成轻压回弹；DSH 桌面版保留原曲线
     this.playOnce(S.pick(this.animations.clicks));
   }
 

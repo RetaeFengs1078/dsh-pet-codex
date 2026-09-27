@@ -830,6 +830,20 @@ app.whenReady().then(() => {
               var hit = document.querySelector('.pet-hit');
               return hit ? getComputedStyle(hit).cursor : '';
             })(),
+            pressFeedback: await (async function () {
+              var hit = document.querySelector('.pet-hit');
+              var video = document.querySelector('video.pet-video.is-front');
+              if (!hit || !video) return null;
+              var wait = function (ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); };
+              hit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 95, clientX: 200, clientY: 200, screenX: 200, screenY: 200 }));
+              var downInline = video.style.scale;
+              await wait(120);
+              var downComputed = getComputedStyle(video).scale;
+              window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 95, clientX: 200, clientY: 200, screenX: 200, screenY: 200 }));
+              var upInline = video.style.scale;
+              await wait(260);
+              return { downInline: downInline, downComputed: downComputed, upInline: upInline, settled: getComputedStyle(video).scale };
+            })(),
             dragTransform: (function () {
               var hit = document.querySelector('.pet-hit');
               var stage = document.querySelector('.pet-stage');
