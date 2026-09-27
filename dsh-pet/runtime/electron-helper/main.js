@@ -843,7 +843,8 @@ app.whenReady().then(() => {
               window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 95, clientX: 200, clientY: 200, screenX: 200, screenY: 200 }));
               var upInline = video.style.scale;
               await wait(260);
-              return { downInline: downInline, downComputed: downComputed, upInline: upInline, settled: getComputedStyle(video).scale };
+              return { downInline: downInline, downComputed: downComputed, upInline: upInline, settled: getComputedStyle(video).scale,
+                shortPressDidNotThrow: sprites[0].throwRef === null };
             })(),
             dragTransform: (function () {
               var hit = document.querySelector('.pet-hit');
@@ -1018,6 +1019,25 @@ app.whenReady().then(() => {
                 }
               }
               return out;
+            })(),
+            longPressSmoke: await (async function () {
+              var sprite = sprites[0];
+              var hit = document.querySelector('.pet-hit');
+              if (!sprite || !hit) return null;
+              var wait = function (ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); };
+              sprite.stopThrow();
+              sprite.stopMove();
+              var before = { x: sprite.pos.x, y: sprite.pos.y };
+              hit.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 96, clientX: 400, clientY: 260, screenX: 400, screenY: 260 }));
+              await wait(950);
+              var compressedScale = sprite.videoA.style.scale;
+              var stayedWhileHeld = sprite.pos.x === before.x && sprite.pos.y === before.y;
+              window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 96, clientX: 400, clientY: 260, screenX: 400, screenY: 260 }));
+              await wait(80);
+              var rising = sprite.throwState !== null && sprite.throwState.vy < 0 && sprite.pos.y < before.y;
+              hit.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+              return { compressedScale: compressedScale, compressed: Number(compressedScale.split(' ')[1]) < 0.88,
+                stayedWhileHeld: stayedWhileHeld, rising: rising, clickDidNotStopThrow: sprite.throwRef !== null };
             })(),
           }))()`);
           console.log(

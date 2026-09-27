@@ -8,6 +8,14 @@
 'use strict';
 
 const AUTO_MOVE_STORAGE_KEY = 'codex-pet-auto-move';
+const LONG_PRESS_DELAY_MS = 600;
+const LONG_PRESS_CURVE_MS = 650;
+
+// x 从 1 起步，避开 x=0 的奇点；长按越久，额外的纵向比例越接近 1/2。
+function longPressRatio(heldMs) {
+  const x = 1 + Math.max(0, heldMs - LONG_PRESS_DELAY_MS) / LONG_PRESS_CURVE_MS;
+  return 1 / (2 * x) + 1 / 2;
+}
 
 // ---------- 单只宠物（行为与浏览器 PetCard 一致；纯逻辑来自 src/shared） ----------
 class PetSprite {
@@ -64,6 +72,10 @@ class PetSprite {
     // 交互/移动
     this.dragState = { active: false, dragging: false, sx: 0, sy: 0, petX: 0, petY: 0 };
     this.justDragged = false;
+    this.longPressStartedAt = null;
+    this.longPressRef = null;
+    this.longPressClickBlocked = false;
+    this.longPressClickTimer = null;
     this._interactive = null; // 已上报的可交互状态（setInteractive 去重用）
     this._inputBusy = null; // 已上报的"正在用输入"状态（syncInputBusy 去重用）
     // 拖拽抛掷物理（与浏览器 pet.ts 同构；纯计算在 shared-core S.*）：
@@ -241,6 +253,8 @@ class PetSprite {
     this.closeMenu();
     this.stopThrow();
     this.stopDragFollow();
+    this.stopLongPress();
+    if (this.longPressClickTimer !== null) window.clearTimeout(this.longPressClickTimer);
     this.stopSquash();
     this.stopMove();
     this.el.remove();
@@ -780,10 +794,39 @@ class PetSprite {
     }
   }
 
+  // 长按达到阈值后按 y=1/(2x)+1/2 继续压缩。只改变视频外观，不移动窗口。
+  startLongPress() {
+    if (!STANDALONE) return;
+    this.stopLongPress();
+    this.longPressStartedAt = performance.now();
+    const step = () => {
+      if (this.longPressStartedAt === null || !this.dragState.active || this.dragState.dragging) return;
+      const heldMs = performance.now() - this.longPressStartedAt;
+      if (heldMs >= LONG_PRESS_DELAY_MS && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const height = 0.88 * longPressRatio(heldMs);
+        for (const video of [this.videoA, this.videoB]) {
+          video.style.transition = 'opacity 0.18s ease';
+          video.style.scale = '1.05 ' + height.toFixed(4);
+        }
+      }
+      this.longPressRef = requestAnimationFrame(step);
+    };
+    this.longPressRef = requestAnimationFrame(step);
+  }
+
+  stopLongPress() {
+    if (this.longPressRef !== null) cancelAnimationFrame(this.longPressRef);
+    this.longPressRef = null;
+    this.longPressStartedAt = null;
+  }
+
   // ---- 点击 vs 拖拽（与浏览器一致：阈值/抓取偏移/释放回循环待机；移动的是窗口） ----
   onPointerDown(e) {
     // 只认左键：右键进入拖拽判定会与右键菜单打架（右键不拖拽，两端一致）
     if (e.button !== 0) return;
+    if (this.longPressClickTimer !== null) window.clearTimeout(this.longPressClickTimer);
+    this.longPressClickTimer = null;
+    this.longPressClickBlocked = false;
     this.clickPress(true);
     // 抓取速度日志：stopThrow 之前读，否则飞行速度就没了；静止时记录 0（与浏览器同构）
     const grabState = this.throwState;
@@ -855,6 +898,7 @@ class PetSprite {
     // 拖拽中宠物滞后于光标，光标可能跑到窗口外→窗口翻回穿透→本窗口收不到 pointermove/pointerup
     // （宠物"飞"出去，见 pointer-target.js）。这里上报"我正在用输入"，主进程据此绝不翻回穿透。
     this.syncInputBusy();
+    this.startLongPress();
     // 注意：舞台「拍平」（去掉 translateY(bottomPad)）不能在这里做——
     // 纯点击（按下即松开）会让人物瞬移上移再落下。与浏览器一致：只有拖拽超过阈值才拍平。
   }
@@ -868,13 +912,14 @@ class PetSprite {
     if (!d.dragging) {
       if (Math.hypot(dx, dy) < S.DRAG_THRESHOLD) return;
       d.dragging = true;
+      this.syncInputBusy(); // 拖拽成立，继续保持窗口可交互。
+      this.stopLongPress();
       this.clickPress(false, true); // 拖拽成立后立即恢复原形，不带点击回弹
       // 真正开始拖拽才把舞台拍平（人物随光标拿起；与浏览器 dragging 语义一致）
       this.stage.style.transform = 'none';
       if (this.animations.drag.length) {
         this.playOnce(S.pick(this.animations.drag));
       }
-      this.syncInputBusy(); // 拖拽成立：主进程兜底通道闭嘴（见 inputBusy）
     }
     // 记录指针轨迹（screenX/Y 采样：与视口坐标只差常数偏移，速度一致；初速估算用；÷scale 进 CSS 系）
     const now = performance.now();
@@ -892,11 +937,25 @@ class PetSprite {
     const wasDragging = d.dragging;
     d.active = false;
     d.dragging = false;
+    this.syncInputBusy(); // 松手或取消后立即解除窗口输入占用。
+    const heldMs = this.longPressStartedAt === null ? 0 : performance.now() - this.longPressStartedAt;
+    const launch = STANDALONE && wasActive && !wasDragging && e?.type === 'pointerup' && heldMs >= LONG_PRESS_DELAY_MS;
+    this.stopLongPress();
     this.hit.classList.remove('dragging');
     this.stopDragFollow(); // 弹簧跟随立即停（位置定格在实时 this.pos）
     this.stage.style.transform = 'translateY(' + this.bottomPad + 'px)';
-    this.syncInputBusy(); // 拖拽结束：交还给常规判定（幂等，非拖拽时多调一次不发 IPC）
     if (wasActive) this.clickPress(false, wasDragging || e?.type === 'pointercancel');
+    if (launch) {
+      this.pressScoreFired = false;
+      this.longPressClickBlocked = true;
+      this.longPressClickTimer = window.setTimeout(() => {
+        this.longPressClickBlocked = false;
+        this.longPressClickTimer = null;
+      }, 250);
+      const speed = (1000 + 2600 * (1 - longPressRatio(heldMs))) * this.physics.throwPower;
+      this.startThrow(this.pos.x, this.pos.y, 0, -speed);
+      return;
+    }
     if (wasDragging) {
       this.justDragged = true;
       setTimeout(() => {
@@ -1012,6 +1071,10 @@ class PetSprite {
   onClick() {
     const d = this.dragState;
     if (d.active || d.dragging || this.justDragged) return;
+    if (this.longPressClickBlocked) {
+      this.longPressClickBlocked = false;
+      return;
+    }
     // 积分判定已在 onPointerDown（按下即触发）完成：
     // 本次按下已触发过积分 → 只收手停住、**不**再播普通点击动画（粒子+弹窗即反馈，与浏览器同构）
     if (this.pressScoreFired) {
