@@ -44,11 +44,15 @@ for (const name of ['webm', 'fonts', 'pic'])
   fs.cpSync(path.join(plugin, 'assets', name), path.join(assets, name), { recursive: true });
 fs.copyFileSync(path.join(plugin, 'assets', 'config.jsonc'), path.join(assets, 'config.jsonc'));
 fs.copyFileSync(path.join(project, 'LICENSE'), path.join(output, 'LICENSE'));
+fs.copyFileSync(path.join(plugin, 'scripts', 'install-codex-win.ps1'), path.join(output, 'install.ps1'));
+fs.copyFileSync(path.join(plugin, 'scripts', 'uninstall-codex-win.ps1'), path.join(output, 'uninstall.ps1'));
 fs.writeFileSync(
   path.join(output, 'README.txt'),
   [
     'Codex 配额桌宠（dsh-pet fork）',
     '',
+    '安装为 Windows 应用：在此目录执行 powershell -NoProfile -ExecutionPolicy Bypass -File .\\install.ps1',
+    '安装目录优先 D:\\Apps\\CodexQuotaPet；开始菜单和 Windows 已安装应用中会出现入口。',
     '双击 CodexPet.exe 启动。右键桌宠可查看配额、选择动作或退出。',
     '程序只读 %USERPROFILE%\\.codex\\sessions 和 archived_sessions；设置 CODEX_HOME 可指定其他目录。',
     '使用前先在 Codex 中产生至少一条含配额的本机会话日志。',

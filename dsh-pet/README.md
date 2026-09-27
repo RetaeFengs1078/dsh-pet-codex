@@ -270,4 +270,4 @@ pnpm run start:codex
 
 右键桌宠可随时点“查看余额”或“退出桌宠”；自动每 5 分钟刷新。Codex 配额不可用时会明确提示，不会伪造 0%。独立版保留动画、拖拽、漫游、置顶和动作菜单；需要 DSH 模型的碎碎念、对话、工作状态默认关闭。
 
-Windows 发布包：先在 `dsh-pet` 目录运行 `pnpm run build:desktop-core`，再运行 `pnpm run build:codex-win`，产物位于仓库根目录 `dist/CodexPet-win32-x64/`。双击 `CodexPet.exe` 即可使用；首次使用前需用 Codex 生成过本机会话记录。发布包须保留附带的 LICENSE、README.txt 和原作者链接。
+Windows 发布包：先在 `dsh-pet` 目录运行 `pnpm run build:desktop-core`，再运行 `pnpm run build:codex-win`，产物位于仓库根目录 `dist/CodexPet-win32-x64/`。双击 `CodexPet.exe` 即可使用；首次使用前需用 Codex 生成过本机会话记录。发布包须保留附带的 LICENSE、README.txt 和原作者链接。若要像“Codex 额度小鲸鱼”一样注册到 Windows 已安装应用，在发布包目录执行 `powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1`。默认安装到 `D:\Apps\CodexQuotaPet`（没有 D 盘时安装到当前用户的 Programs 目录），并创建开始菜单入口；可从 Windows 已安装应用卸载。更新时旧安装备份留在安装目录旁。
