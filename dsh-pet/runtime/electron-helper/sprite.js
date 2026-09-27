@@ -1024,14 +1024,14 @@ class PetSprite {
     this.stopMove(); // 菜单悬停期间宠物不漫游
     // 桌面专属工具根项（打开网站 / 查看余额 / 碎碎念 / 对话 / 回到初始位置）+ 共享菜单树（动作→分类→具体动画）
     // 碎碎念/对话项无条件显示：手动触发不受 whisperEnabled 限制（该字段只影响自动周期轮询）
-    const tools = [{ label: '打开网站', action: 'open-site' }];
+    const tools = STANDALONE ? [] : [{ label: '打开网站', action: 'open-site' }];
     if (this.pet.balanceEnabled) tools.push({ label: '查看余额', action: 'show-balance' });
-    tools.push(
-      { label: '碎碎念', action: 'whisper' },
-      { label: '对话', action: 'chat' },
-      { label: '回到初始位置', action: 'home' },
-    );
-    const tree = tools.concat(S.buildMenuTree(this.animations));
+    if (!STANDALONE) tools.push({ label: '碎碎念', action: 'whisper' }, { label: '对话', action: 'chat' });
+    tools.push({ label: '回到初始位置', action: 'home' });
+    const menuAnimations = STANDALONE
+      ? { ...this.animations, events: { balance: this.animations.events?.balance ?? [] } }
+      : this.animations;
+    const tree = tools.concat(S.buildMenuTree(menuAnimations));
     if (!tree.length) return;
     this.menuOpen = true;
     this.setInteractive(true); // 菜单是窗口内 DOM：悬停期间整窗保持可交互，关闭后恢复命中区穿透

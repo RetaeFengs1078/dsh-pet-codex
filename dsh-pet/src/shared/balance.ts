@@ -7,7 +7,7 @@
 export interface RawBalanceResult {
   ok: boolean;
   provider?: string;
-  kind?: 'opencode' | 'deepseek';
+  kind?: 'opencode' | 'deepseek' | 'codex';
   reason?: string;
   message?: string;
   data?: {
@@ -21,13 +21,16 @@ export interface RawBalanceResult {
     total?: unknown;
     granted?: unknown;
     toppedUp?: unknown;
+    fiveHour?: unknown;
+    weeklyWindow?: unknown;
+    updatedAt?: unknown;
   };
 }
 
 /** 已解析的余额视图（展示 + 档位计算用） */
 export interface BalanceView {
   provider: string;
-  kind: 'opencode' | 'deepseek';
+  kind: 'opencode' | 'deepseek' | 'codex';
   ok: true;
   /** opencode：三窗口用量（0-100 数字）+ 各自的重置时间 */
   rolling?: number;
@@ -41,6 +44,15 @@ export interface BalanceView {
   total?: string;
   granted?: string;
   toppedUp?: string;
+  fiveHour?: CodexWindow;
+  weeklyWindow?: CodexWindow;
+  updatedAt?: number;
+}
+
+export interface CodexWindow {
+  usedPercent: number;
+  remainingPercent: number;
+  resetsAt?: string;
 }
 
 /** 无效（不支持/缺凭证/抓取失败）：显式标记，不静默 */
@@ -107,6 +119,29 @@ export async function fetchBalanceState(baseUrl: string = '/dsh-pet-7340/balance
       monthlyResetsAt: typeof d.monthlyResetsAt === 'string' ? d.monthlyResetsAt : undefined,
     };
   }
+  if (raw.kind === 'codex') {
+    const d = raw.data;
+    if (!d || typeof d !== 'object') throw new Error('dsh-pet: Codex 额度数据非法');
+    const parse = (value: unknown): CodexWindow | undefined => {
+      if (value === null || value === undefined) return undefined;
+      if (typeof value !== 'object') throw new Error('dsh-pet: Codex 额度窗口非法');
+      const item = value as Record<string, unknown>;
+      const used = Number(item.usedPercent);
+      const remaining = Number(item.remainingPercent);
+      if (![used, remaining].every(Number.isFinite) || used < 0 || used > 100 || remaining < 0 || remaining > 100)
+        throw new Error('dsh-pet: Codex 额度百分比非法');
+      return {
+        usedPercent: used,
+        remainingPercent: remaining,
+        resetsAt: typeof item.resetsAt === 'string' ? item.resetsAt : undefined,
+      };
+    };
+    const fiveHour = parse(d.fiveHour);
+    const weeklyWindow = parse(d.weeklyWindow);
+    if (!fiveHour && !weeklyWindow) throw new Error('dsh-pet: Codex 没有可用额度窗口');
+    return { provider, kind: 'codex', ok: true, fiveHour, weeklyWindow, updatedAt: Number(d.updatedAt) || undefined };
+  }
+
   if (raw.kind === 'deepseek') {
     const d = raw.data;
     if (!d || typeof d !== 'object') throw new Error('dsh-pet: deepseek 数据非法');
@@ -142,6 +177,10 @@ export const DEEPSEEK_FULL_BALANCE_CNY = 20;
  */
 export function balancePercent(v: BalanceView): number | undefined {
   if (v.kind === 'opencode') return Math.max(v.rolling ?? 0, v.weekly ?? 0, v.monthly ?? 0);
+  if (v.kind === 'codex') {
+    const values = [v.fiveHour?.usedPercent, v.weeklyWindow?.usedPercent].filter((n): n is number => n !== undefined);
+    return values.length ? Math.max(...values) : undefined;
+  }
   if (v.kind === 'deepseek') {
     const total = Number(v.total);
     if (!Number.isFinite(total)) return undefined; // 金额非法（非数字）：不触发（上层校验已兜底，此处双保险）
@@ -307,6 +346,38 @@ export function balanceBubbleView(state: BalanceState): BalanceBubbleRow[] {
         return rows;
       }
       return [{ role: 'label', text: '额度数据不可用' }];
+    }
+    if (state.kind === 'codex') {
+      const rows: BalanceBubbleRow[] = [];
+      for (const [label, window] of [
+        ['5 小时', state.fiveHour],
+        ['周', state.weeklyWindow],
+      ] as const) {
+        if (!window) continue;
+        rows.push({
+          role: 'label',
+          text:
+            label +
+            '：已用 ' +
+            Math.round(window.usedPercent) +
+            '% · 剩余 ' +
+            Math.round(window.remainingPercent) +
+            '%',
+        });
+        rows.push({
+          role: 'sub',
+          text: window.resetsAt
+            ? new Date(window.resetsAt).toLocaleString('zh-CN', {
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              }) + ' 重置'
+            : '重置时间未知',
+        });
+      }
+      return rows;
     }
     const tier = deepseekPricingTier();
     return [

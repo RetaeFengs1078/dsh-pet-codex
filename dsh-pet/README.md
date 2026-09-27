@@ -252,3 +252,22 @@ AI 生成动画的配方     源视频 → 透明动画的管线    运行在 DS
 
 - 代码：MIT
 - 素材（动画/提示词/源视频）：允许开源使用，**禁止商用**
+
+## Codex 独立桌面版（本 fork）
+
+本 fork 增加 **Codex 配额桌宠**：直接只读本机 `%USERPROFILE%\.codex\sessions`（设置 `CODEX_HOME` 时优先使用它）与归档会话的 `rollout-*.jsonl`，从最新有效 `rate_limits` 读取额度。按 `window_minutes` 识别 300 分钟和 10080 分钟窗口，分别显示已用、剩余和重置时间；只有一个窗口时只显示该窗口。无需 DSH、Codex Desktop、网络或 API Key。原插件的 DeepSeek / OpenCode 功能保留。
+
+源码运行：
+
+```powershell
+cd dsh-pet
+pnpm install
+pnpm run build:desktop-core
+$env:DSH_HOME = (Resolve-Path ..).Path + '\runtime'
+node scripts/ensure-electron.mjs
+pnpm run start:codex
+```
+
+右键桌宠可随时点“查看余额”；自动每 5 分钟刷新。Codex 配额不可用时会明确提示，不会伪造 0%。独立版保留动画、拖拽、漫游、置顶和动作菜单；需要 DSH 模型的碎碎念、对话、工作状态默认关闭。
+
+Windows 发布包：先在 `dsh-pet` 目录运行 `pnpm run build:desktop-core`，再运行 `pnpm run build:codex-win`，产物位于仓库根目录 `dist/CodexPet-win32-x64/`。双击 `CodexPet.exe` 即可使用；首次使用前需用 Codex 生成过本机会话记录。发布包须保留附带的 LICENSE、README.txt 和原作者链接。

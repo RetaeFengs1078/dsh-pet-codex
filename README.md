@@ -1,5 +1,8 @@
 # dsh-pet 🐾
 
+> 本 fork 增加 **Codex 配额独立桌宠**。Windows 本地构建后可运行 `dist/CodexPet-win32-x64/CodexPet.exe`；从源码构建见 [Codex 版说明](dsh-pet/README.md#codex-独立桌面版本-fork)。读取本机 Codex 会话日志，无需 DSH、网络或 API Key。原作者与原项目：[PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)。
+
+
 <p align="center">
   <a href="https://www.npmjs.com/package/dsh-pet"><img alt="npm version" src="https://img.shields.io/npm/v/dsh-pet?label=npm&color=blue"></a>
   <a href="https://www.npmjs.com/package/dsh-pet"><img alt="npm monthly downloads" src="https://img.shields.io/npm/dm/dsh-pet?label=%E6%9C%88%E4%B8%8B%E8%BD%BD&color=brightgreen"></a>

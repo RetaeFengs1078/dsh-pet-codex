@@ -9,6 +9,7 @@
 const S = window.PetShared;
 
 const params = new URLSearchParams(location.search);
+const STANDALONE = params.get('standalone') === '1';
 const CONFIG = {
   configUrl: params.get('configUrl') || 'http://127.0.0.1:3080/dsh-pet-7340/config',
   scale: Number(params.get('scale') || '1'),

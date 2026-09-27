@@ -61,7 +61,12 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // 显式定名：Helper 是被 `electron.exe <main.js>` 直接拉起的，Electron 取不到 app 名会回落成
 // "Electron"，userData 便落到 %APPDATA%\Electron —— 那是所有这么跑的 Electron 脚本的公共目录，
 // 我们的 DPI 缓存与 Chromium profile 都会和别人混在一起。必须赶在任何 getPath('userData') 之前设。
+const STANDALONE =
+  process.env.DSH_PET_STANDALONE === '1' ||
+  require('node:fs').existsSync(require('node:path').join(__dirname, 'codex-standalone.flag'));
+const codexLocal = STANDALONE ? require('./codex-local.cjs') : null;
 app.setName('dsh-pet-electron-helper');
+if (STANDALONE) app.setName('Codex 配额桌宠');
 
 /** DPI 探测子进程模式：不建窗口，只把主屏 scaleFactor 打到 stdout 就退出（见 probePrimaryScale） */
 const DPI_PROBE = process.env.DSH_PET_DPI_PROBE === '1';
@@ -94,7 +99,9 @@ function exitForDeadHost() {
 // ① 管道守卫：必须赶在**任何一次写**之前装上（probePrimaryScale 失败就会往 stderr 写）
 for (const stream of [process.stdout, process.stderr]) {
   stream.on('error', (error) => {
-    if (isBrokenPipeError(error)) exitForDeadHost();
+    if (!STANDALONE) {
+      if (isBrokenPipeError(error)) exitForDeadHost();
+    }
     // 其余流错误同样吞掉：Electron 的默认处理是弹模态框，任何流错误都不值得拿桌宠去换一个框
   });
 }
@@ -241,7 +248,7 @@ function petScale() {
 }
 
 /** bridge 模式：DSH_PET_BRIDGE=1（宿主注入）。开启时注册 dsh-pet-bridge scheme + 管道转发 */
-const BRIDGE = process.env.DSH_PET_BRIDGE === '1';
+const BRIDGE = STANDALONE || process.env.DSH_PET_BRIDGE === '1';
 /** 协议行前缀（与 helper-process.ts 的 BRIDGE_PREFIX 一致） */
 const BRIDGE_PREFIX = 'dsh-pet-bridge:';
 
@@ -345,7 +352,7 @@ function petsFromEnv() {
   } catch {
     /* fallthrough */
   }
-  return [{ id: 'main', size: 462, index: 0 }];
+  return STANDALONE ? codexLocal.desktopPets() : [{ id: 'main', size: 462, index: 0 }];
 }
 
 /** 窗口初始尺寸 = 宠物包围盒 + 四周外扩余量（4×0.5×size，与 renderer 的 WINDOW_MARGIN_RATIO 一致；
@@ -402,7 +409,9 @@ function deskGeometry() {
 function createPetWindows() {
   const geo = deskGeometry();
   const area = geo.hull;
-  const configUrl = process.env.DSH_PET_CONFIG_URL || 'http://127.0.0.1:3080/dsh-pet-7340/config';
+  const configUrl = STANDALONE
+    ? 'dsh-pet-bridge://dsh-pet/dsh-pet-7340/config'
+    : process.env.DSH_PET_CONFIG_URL || 'http://127.0.0.1:3080/dsh-pet-7340/config';
   const pets = petsFromEnv();
   const scale = petScale();
   for (const pet of pets) {
@@ -485,10 +494,11 @@ function createPetWindows() {
       inputBusy.delete(win.id);
     });
     win
-      .loadFile('index.html', {
+      .loadFile(path.join(__dirname, 'index.html'), {
         query: {
           configUrl,
           bridge: BRIDGE ? '1' : '0',
+          standalone: STANDALONE ? '1' : '0',
           scale: String(scale),
           petIndex: String(pet.index),
           workAreaW: String(area.width),
@@ -593,7 +603,9 @@ async function handleBridgeRequest(request) {
   if (method === 'POST' || method === 'PUT') {
     body = await request.text();
   }
-  const resp = await bridgeRequest(method, url.pathname + url.search, body);
+  const resp = STANDALONE
+    ? await codexLocal.handleRequest(method, url.pathname + url.search)
+    : await bridgeRequest(method, url.pathname + url.search, body);
   const headers = { 'access-control-allow-origin': '*' }; // 渲染端页面是 file:// 源，scheme 跨源需 CORS
   if (resp.contentType) headers['content-type'] = resp.contentType;
   if (resp.file) {
@@ -639,7 +651,7 @@ app.whenReady().then(() => {
         });
       }),
     );
-    startBridgeCallback(); // 宿主应答回调服务器（stdin 在 Electron 主进程不可用，改走本地 HTTP）
+    if (!STANDALONE) startBridgeCallback(); // 独立版完全在主进程处理请求，无管道和本地 HTTP 端口
   }
 
   createPetWindows();

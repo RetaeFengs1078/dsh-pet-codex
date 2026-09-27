@@ -76,7 +76,10 @@
     "types": "node scripts/gen-types.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "start:codex": "node scripts/start-codex.mjs",
+    "test:codex": "node --test runtime/electron-helper/codex-reader.test.cjs",
+    "build:codex-win": "node scripts/build-codex-win.mjs"
   },
   "license": "MIT",
   "dependencies": {

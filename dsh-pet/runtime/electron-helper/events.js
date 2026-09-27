@@ -246,7 +246,7 @@ PetSprite.prototype.showBalanceNow = function showBalanceNow(state) {
   const name = S.pickSlot(slot, this.anim); // 数组槽位档内随机抽 1，且避开当前正播动画（避免连续重复，与浏览器一致）
   this.stopMove();
   this.bubbleOn = true;
-  this.balanceWrap = false; // 正常余额气泡是单行（nowrap），别继承上一次文字说明的换行变体
+  this.balanceWrap = state.kind === 'codex'; // Codex 两个额度窗口需要多行排版
   this.balanceView = S.balanceBubbleView(state);
   this.renderBubble();
   // 气泡 10s 定时消失（与动画解耦：即使动画被点击/拖拽打断，气泡也按时收起；重复触发先清旧定时器）
