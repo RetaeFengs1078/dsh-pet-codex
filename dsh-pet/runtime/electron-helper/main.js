@@ -744,6 +744,11 @@ app.whenReady().then(() => {
     inputBusy.set(win.id, !!busy);
   });
 
+  // 独立版由用户主动退出；DSH 模式仍由宿主管理生命周期。
+  ipcMain.on('pet:quit', () => {
+    if (STANDALONE) app.quit();
+  });
+
   // 右键菜单「打开网站」：交给**系统默认浏览器**打开（等效于网页里 Ctrl+点击链接新标签页），
   // 不建专属窗口——宠物窗口机制是透明小窗，不该承载常规网页浏览。URL 由渲染端从
   // configUrl 推导 = DSH webServer 端口，端口变化自动跟随

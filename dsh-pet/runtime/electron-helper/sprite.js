@@ -1028,6 +1028,7 @@ class PetSprite {
     if (this.pet.balanceEnabled) tools.push({ label: '查看余额', action: 'show-balance' });
     if (!STANDALONE) tools.push({ label: '碎碎念', action: 'whisper' }, { label: '对话', action: 'chat' });
     tools.push({ label: '回到初始位置', action: 'home' });
+    if (STANDALONE) tools.push({ label: '退出桌宠', action: 'quit' });
     const menuAnimations = STANDALONE
       ? { ...this.animations, events: { balance: this.animations.events?.balance ?? [] } }
       : this.animations;
@@ -1071,6 +1072,10 @@ class PetSprite {
     }
     if (leaf.action === 'chat') {
       this.showChatFromMenu(); // 打开对话弹窗（记忆经 host /chat 读写，浏览器/桌面同一实例共享）
+      return;
+    }
+    if (leaf.action === 'quit' && STANDALONE) {
+      window.petBridge?.quit();
       return;
     }
     if (leaf.action === 'home') {

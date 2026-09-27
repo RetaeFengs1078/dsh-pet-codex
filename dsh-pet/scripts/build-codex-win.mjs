@@ -49,7 +49,7 @@ fs.writeFileSync(
   [
     'Codex 配额桌宠（dsh-pet fork）',
     '',
-    '双击 CodexPet.exe 启动。右键桌宠可查看配额、选择动作。',
+    '双击 CodexPet.exe 启动。右键桌宠可查看配额、选择动作或退出。',
     '程序只读 %USERPROFILE%\\.codex\\sessions 和 archived_sessions；设置 CODEX_HOME 可指定其他目录。',
     '使用前先在 Codex 中产生至少一条含配额的本机会话日志。',
     '支持 5 小时和周窗口：已用、剩余、重置时间；每 5 分钟自动刷新。',
