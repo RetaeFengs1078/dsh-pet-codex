@@ -64,7 +64,7 @@ try {
   $uninstallCommand = '"' + $powerShellExe + '" -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $installDir 'uninstall.ps1') + '"'
   $fields = @{
     DisplayName = $name
-    DisplayVersion = '0.1.4'
+    DisplayVersion = '0.1.5'
     DisplayIcon = $installedIcon
     InstallLocation = $installDir
     UninstallString = $uninstallCommand
